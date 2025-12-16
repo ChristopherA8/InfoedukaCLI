@@ -1,3 +1,4 @@
 .vscode
 src/token.hpp
 dist/main
+.DS_Store
