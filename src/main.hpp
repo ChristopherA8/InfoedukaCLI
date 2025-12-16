@@ -12,31 +12,46 @@
 #include <iostream>
 #include <future>
 
+#include "token.hpp"
+
 using namespace std;
 using namespace ftxui;
 
 const string APP_TITLE = "Infoeduka";
 
-struct ClassSession {
-    std::string datum;
-    std::string terminPocetak;
-    std::string terminKraj;
-    int terminTrajanje;
-    std::string dvorana;
-    std::string url;
-    std::string nastavnik;
-    std::string tip;
+std::future<nlohmann::json> fetchDataAsync(const std::string &url) {
+  return std::async(std::launch::async, [url]() {
+    auto response = cpr::Get(cpr::Url{url}, cpr::Cookies{{"PHPSESSID", TOKEN}});
+    return nlohmann::json::parse(response.text);
+  });
+}
+
+struct ClassInfo {
+    int idPredmet;
     std::string predmet;
+    std::string sifra;
+    int ects;
+    bool potpis;
+    std::optional<int> ocjena;  // empty = null or ""
+    std::string ocjenaOpisno;
+    std::string ocjenaDatum;
+    bool priznat;
 };
 
-void from_json(const nlohmann::json& j, ClassSession& c) {
-    j.at("datum").get_to(c.datum);
-    j.at("terminPocetak").get_to(c.terminPocetak);
-    j.at("terminKraj").get_to(c.terminKraj);
-    j.at("terminTrajanje").get_to(c.terminTrajanje);
-    j.at("dvorana").get_to(c.dvorana);
-    j.at("url").get_to(c.url);
-    j.at("nastavnik").get_to(c.nastavnik);
-    j.at("tip").get_to(c.tip);
-    j.at("predmet").get_to(c.predmet);
+// Helper: convert "dd.mm.yyyy." string to time_t
+time_t parseDate(const std::string& s) {
+    std::tm tm = {};
+    sscanf(s.c_str(), "%d.%d.%d.", &tm.tm_mday, &tm.tm_mon, &tm.tm_year);
+    tm.tm_mon -= 1;       // months 0-11
+    tm.tm_year -= 1900;   // years since 1900
+    return std::mktime(&tm);
+}
+
+// Helper: get today as time_t
+time_t today() {
+    auto now = std::chrono::system_clock::now();
+    std::time_t tnow = std::chrono::system_clock::to_time_t(now);
+    std::tm tm = *std::localtime(&tnow);
+    tm.tm_hour = tm.tm_min = tm.tm_sec = 0;
+    return std::mktime(&tm);
 }
